@@ -1,0 +1,10 @@
+# backend/Dockerfile.dev
+FROM eclipse-temurin:17-jdk
+WORKDIR /app
+
+COPY .mvn .mvn
+COPY mvnw pom.xml ./
+RUN chmod +x mvnw && ./mvnw -q dependency:go-offline
+
+EXPOSE 8080
+CMD ["./mvnw", "spring-boot:run", "-Dspring-boot.run.fork=false"]

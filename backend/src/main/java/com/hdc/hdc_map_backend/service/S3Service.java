@@ -8,6 +8,7 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.S3ClientBuilder;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
@@ -30,24 +31,32 @@ public class S3Service {
     @Value("${aws.secret.access.key:}")
     private String secretAccessKey;
 
+    @Value("${aws.s3.endpoint:}")
+    private String s3Endpoint;
+
     private S3Client s3Client;
+
+    static void applyEndpointOverride(S3ClientBuilder builder, String endpointUrl) {
+        if (endpointUrl != null && !endpointUrl.isEmpty()) {
+            builder.endpointOverride(java.net.URI.create(endpointUrl))
+                   .forcePathStyle(true);
+        }
+    }
 
     @PostConstruct
     public void init() {
-        // Use explicit credentials if provided, otherwise use default chain
-        // This supports both local dev (with keys) and EC2 (with IAM role)
         if (accessKeyId != null && !accessKeyId.isEmpty()
                 && secretAccessKey != null && !secretAccessKey.isEmpty()) {
             AwsBasicCredentials credentials = AwsBasicCredentials.create(accessKeyId, secretAccessKey);
-            this.s3Client = S3Client.builder()
+            S3ClientBuilder builder = S3Client.builder()
                     .region(Region.of(region))
-                    .credentialsProvider(StaticCredentialsProvider.create(credentials))
-                    .build();
+                    .credentialsProvider(StaticCredentialsProvider.create(credentials));
+            applyEndpointOverride(builder, s3Endpoint);
+            this.s3Client = builder.build();
         } else {
-            // Use default credentials chain (EC2 instance metadata, environment vars, etc.)
-            this.s3Client = S3Client.builder()
-                    .region(Region.of(region))
-                    .build();
+            S3ClientBuilder builder = S3Client.builder().region(Region.of(region));
+            applyEndpointOverride(builder, s3Endpoint);
+            this.s3Client = builder.build();
         }
     }
 
@@ -59,30 +68,30 @@ public class S3Service {
      * @return The public URL of the uploaded image
      */
     public String uploadProfileImage(MultipartFile file, Long userId) throws IOException {
-        // Validate file
+        
         if (file.isEmpty()) {
             throw new IllegalArgumentException("File is empty");
         }
 
-        // Validate file type
+        
         String contentType = file.getContentType();
         if (contentType == null || !contentType.startsWith("image/")) {
             throw new IllegalArgumentException("File must be an image");
         }
 
-        // Validate file size (max 20MB for high quality photos)
+        
         if (file.getSize() > 20 * 1024 * 1024) {
             throw new IllegalArgumentException("File size must not exceed 20MB");
         }
 
-        // Generate unique filename
+        
         String originalFilename = file.getOriginalFilename();
         String extension = originalFilename != null && originalFilename.contains(".")
                 ? originalFilename.substring(originalFilename.lastIndexOf("."))
                 : ".jpg";
         String fileName = "profile-images/" + userId + "/" + UUID.randomUUID() + extension;
 
-        // Upload to S3
+        
         PutObjectRequest putObjectRequest = PutObjectRequest.builder()
                 .bucket(bucketName)
                 .key(fileName)
@@ -91,8 +100,8 @@ public class S3Service {
 
         s3Client.putObject(putObjectRequest, RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
 
-        // Return public URL
-        return String.format("https://%s.s3.%s.amazonaws.com/%s", bucketName, region, fileName);
+        
+        return String.format("https:
     }
 
     /**
@@ -106,7 +115,7 @@ public class S3Service {
         }
 
         try {
-            // Extract key from URL
+            
             String key = imageUrl.substring(imageUrl.indexOf("profile-images/"));
 
             DeleteObjectRequest deleteObjectRequest = DeleteObjectRequest.builder()
@@ -116,7 +125,7 @@ public class S3Service {
 
             s3Client.deleteObject(deleteObjectRequest);
         } catch (Exception e) {
-            // Log error but don't throw - old URL might be invalid
+            
             System.err.println("Failed to delete profile image: " + e.getMessage());
         }
     }
@@ -129,30 +138,30 @@ public class S3Service {
      * @return The public URL of the uploaded image
      */
     public String uploadBannerImage(MultipartFile file, Long userId) throws IOException {
-        // Validate file
+        
         if (file.isEmpty()) {
             throw new IllegalArgumentException("File is empty");
         }
 
-        // Validate file type
+        
         String contentType = file.getContentType();
         if (contentType == null || !contentType.startsWith("image/")) {
             throw new IllegalArgumentException("File must be an image");
         }
 
-        // Validate file size (max 20MB for high quality photos)
+        
         if (file.getSize() > 20 * 1024 * 1024) {
             throw new IllegalArgumentException("File size must not exceed 20MB");
         }
 
-        // Generate unique filename
+        
         String originalFilename = file.getOriginalFilename();
         String extension = originalFilename != null && originalFilename.contains(".")
                 ? originalFilename.substring(originalFilename.lastIndexOf("."))
                 : ".jpg";
         String fileName = "banner-images/" + userId + "/" + UUID.randomUUID() + extension;
 
-        // Upload to S3
+        
         PutObjectRequest putObjectRequest = PutObjectRequest.builder()
                 .bucket(bucketName)
                 .key(fileName)
@@ -161,8 +170,8 @@ public class S3Service {
 
         s3Client.putObject(putObjectRequest, RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
 
-        // Return public URL
-        return String.format("https://%s.s3.%s.amazonaws.com/%s", bucketName, region, fileName);
+        
+        return String.format("https:
     }
 
     /**
@@ -176,7 +185,7 @@ public class S3Service {
         }
 
         try {
-            // Extract key from URL
+            
             String key = imageUrl.substring(imageUrl.indexOf("banner-images/"));
 
             DeleteObjectRequest deleteObjectRequest = DeleteObjectRequest.builder()
@@ -186,7 +195,7 @@ public class S3Service {
 
             s3Client.deleteObject(deleteObjectRequest);
         } catch (Exception e) {
-            // Log error but don't throw - old URL might be invalid
+            
             System.err.println("Failed to delete banner image: " + e.getMessage());
         }
     }

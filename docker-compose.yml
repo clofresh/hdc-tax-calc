@@ -1,0 +1,115 @@
+services:
+  postgres:
+    build: ./docker/postgres
+    environment:
+      POSTGRES_DB: hdc
+      POSTGRES_USER: hdc
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-hdc_local}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hdc -d hdc"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - hdc-net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+      mailhog:
+        condition: service_started
+    ports:
+      - "8080:8080"
+    env_file: .env
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/hdc?currentSchema=user_schema
+      SPRING_DATASOURCE_USERNAME: hdc
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-hdc_local}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_PROPERTIES_HIBERNATE_DEFAULT_SCHEMA: user_schema
+    volumes:
+      - ./backend/src:/app/src
+      - ./backend/pom.xml:/app/pom.xml
+      - maven-repo:/root/.m2
+    networks:
+      - hdc-net
+
+  localstack:
+    image: localstack/localstack:3
+    ports:
+      - "4566:4566"
+    environment:
+      SERVICES: s3
+      DEBUG: 0
+      PERSISTENCE: 1
+    volumes:
+      - localstack-data:/var/lib/localstack
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:4566/_localstack/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - hdc-net
+
+  localstack-init:
+    image: amazon/aws-cli:latest
+    depends_on:
+      localstack:
+        condition: service_healthy
+    environment:
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: us-east-2
+    entrypoint:
+      - sh
+      - -c
+      - |
+        aws --endpoint-url=http://localstack:4566 s3 mb s3://hdc-local --region us-east-2 || true
+        aws --endpoint-url=http://localstack:4566 s3api put-bucket-cors --bucket hdc-local --cors-configuration '{"CORSRules":[{"AllowedOrigins":["*"],"AllowedMethods":["GET","PUT","POST","DELETE"],"AllowedHeaders":["*"]}]}'
+    networks:
+      - hdc-net
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    networks:
+      - hdc-net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_BASE_URL: http://localhost:8080/api
+      CHOKIDAR_USEPOLLING: "true"
+    volumes:
+      - ./frontend:/app
+      - frontend-node-modules:/app/node_modules
+    networks:
+      - hdc-net
+
+networks:
+  hdc-net:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  maven-repo:
+  localstack-data:
+  frontend-node-modules:

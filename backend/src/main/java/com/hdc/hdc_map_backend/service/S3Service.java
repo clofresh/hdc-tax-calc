@@ -100,8 +100,8 @@ public class S3Service {
 
         s3Client.putObject(putObjectRequest, RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
 
-        
-        return String.format("https:
+
+        return String.format("https://%s.s3.%s.amazonaws.com/%s", bucketName, region, fileName);
     }
 
     /**
@@ -170,8 +170,8 @@ public class S3Service {
 
         s3Client.putObject(putObjectRequest, RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
 
-        
-        return String.format("https:
+
+        return String.format("https://%s.s3.%s.amazonaws.com/%s", bucketName, region, fileName);
     }
 
     /**

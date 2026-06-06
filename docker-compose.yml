@@ -42,6 +42,8 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-hdc_local}
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SPRING_JPA_PROPERTIES_HIBERNATE_DEFAULT_SCHEMA: user_schema
+      # Enables PresetSeeder to load fixtures from src/main/resources/seed/presets/*.json
+      SPRING_PROFILES_ACTIVE: dev
     volumes:
       - ./backend/src:/app/src
       - ./backend/pom.xml:/app/pom.xml

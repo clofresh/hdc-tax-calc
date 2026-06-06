@@ -14,10 +14,12 @@ HDC Tax Calculator — a React + Spring Boot application for modeling tax benefi
 
 ```bash
 cp .env.example .env
-docker compose up -d
+docker compose watch
 ```
 
-Brings up Postgres, backend, frontend, LocalStack (S3 stub), and Mailhog (SMTP catcher) on one bridge network. Hibernate's `ddl-auto=update` creates the schema on first boot.
+Brings up Postgres, backend, frontend, LocalStack (S3 stub), and Mailhog (SMTP catcher) on one bridge network, and attaches a host-side file watcher in the foreground. Hibernate's `ddl-auto=update` creates the schema on first boot. Requires Docker Compose 2.22+ for the `watch` action — check `docker compose version` if anything fails to start.
+
+Ctrl+C stops the watcher *and* the containers cleanly. To run the stack in the background instead, `docker compose up -d` and then `docker compose watch` in a separate terminal — that variant only attaches the watcher.
 
 | Service     | URL                              | Notes                              |
 |-------------|----------------------------------|------------------------------------|
@@ -34,8 +36,9 @@ directly for debugging, either `docker compose exec backend curl ...` or
 temporarily add a `8081:8080` mapping to `docker-compose.yml`.
 
 **Hot reload:**
-- Frontend: save a file → Vite HMR (~200ms).
-- Backend: save a Java file → run `docker compose exec backend ./mvnw -q compile` → DevTools restarts (~5s).
+- Frontend: save a file → compose watch syncs it into the container → Vite HMR (~200ms).
+- Backend: save a Java file → compose watch syncs it into the container and runs `mvn compile` → Spring DevTools restarts (~5s). No manual compile step needed.
+- `pom.xml` or `package.json` change: compose watch rebuilds the affected container (~30s).
 
 **Reset the local DB:** `docker compose down -v && docker compose up -d`.
 

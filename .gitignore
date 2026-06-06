@@ -64,6 +64,8 @@ logs/
 *.sql
 backup_*.sql
 *backup*.sql
+# But allow postgres init scripts
+!docker/postgres/init/*.sql
 
 # Random md files
 FEEDBACK_SYSTEM_FIX.md

@@ -29,8 +29,12 @@ services:
         condition: service_healthy
       mailhog:
         condition: service_started
-    ports:
-      - "8080:8080"
+    # No host port mapping: browser reaches backend through the Vite proxy
+    # at http://localhost:5173/api/*. For direct debugging from the host:
+    # `docker compose exec backend curl ...`, or temporarily add a mapping
+    # like `- "8081:8080"` (8080 is intentionally left free for other tools).
+    expose:
+      - "8080"
     env_file: .env
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/hdc?currentSchema=user_schema
@@ -93,10 +97,14 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile.dev
+    depends_on:
+      - backend
     ports:
       - "5173:5173"
     environment:
-      VITE_API_BASE_URL: http://localhost:8080/api
+      # Same-origin: axios sends to /api/*, Vite proxies to the backend container.
+      VITE_API_BASE_URL: /api
+      VITE_BACKEND_PROXY_TARGET: http://backend:8080
       CHOKIDAR_USEPOLLING: "true"
     volumes:
       - ./frontend:/app

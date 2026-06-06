@@ -22,10 +22,16 @@ Brings up Postgres, backend, frontend, LocalStack (S3 stub), and Mailhog (SMTP c
 | Service     | URL                              | Notes                              |
 |-------------|----------------------------------|------------------------------------|
 | Frontend    | http://localhost:5173            | Vite dev server, HMR enabled       |
-| Backend API | http://localhost:8080            | Spring Boot, Swagger at /swagger-ui |
+| Backend API | http://localhost:5173/api/...    | Reached through the Vite proxy; container has no host port |
 | Postgres    | localhost:5432 (user `hdc`)      | DB name `hdc`                      |
 | Mailhog UI  | http://localhost:8025            | Catches all outbound SMTP          |
 | LocalStack  | http://localhost:4566            | S3 endpoint                        |
+
+The backend container is not published on the host. Browsers and host-side
+curls reach it through Vite at `http://localhost:5173/api/...`. Port 8080 on
+the host is intentionally left free (e.g. for llamacpp). To hit the backend
+directly for debugging, either `docker compose exec backend curl ...` or
+temporarily add a `8081:8080` mapping to `docker-compose.yml`.
 
 **Hot reload:**
 - Frontend: save a file → Vite HMR (~200ms).
@@ -36,6 +42,7 @@ Brings up Postgres, backend, frontend, LocalStack (S3 stub), and Mailhog (SMTP c
 **Troubleshooting:**
 - "port 5432 already in use" — kill any local Postgres or stale SSH tunnel on 5432 before `up`.
 - Frontend HMR doesn't fire — confirm `CHOKIDAR_USEPOLLING=true` in the `frontend` service env.
+- Browser gets 404 on `/api/...` requests — make sure `VITE_API_BASE_URL=/api` in `.env` (not the absolute `http://localhost:8080/api` from older docs). Absolute URLs bypass the Vite proxy and may hit whatever else is on 8080.
 - Backend can't reach DB — check `docker compose logs postgres` for init errors; if seen, `down -v` and retry.
 - Schema looks wrong after entity change — `ddl-auto=update` adds columns but doesn't drop or rename them. `down -v` for destructive changes.
 - Email features fail — make sure `mailhog` is running and `SPRING_MAIL_HOST=mailhog`, `SPRING_MAIL_PORT=1025` in `.env`.

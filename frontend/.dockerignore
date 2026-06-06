@@ -1,0 +1,8 @@
+# frontend/.dockerignore
+node_modules
+dist
+.cache
+.vscode
+.idea
+*.log
+.DS_Store

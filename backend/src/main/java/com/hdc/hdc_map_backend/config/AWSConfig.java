@@ -16,8 +16,30 @@ public class AWSConfig {
     @Value("${aws.secret.access.key:}")
     private String secretAccessKey;
 
+    @Value("${aws.bedrock.access.key.id:}")
+    private String bedrockAccessKeyId;
+
+    @Value("${aws.bedrock.secret.access.key:}")
+    private String bedrockSecretAccessKey;
+
     @Value("${bedrock.region:us-east-2}")
     private String bedrockRegion;
+
+    public record ResolvedKey(String accessKeyId, String secretAccessKey) {}
+
+    static ResolvedKey resolveBedrockKey(String bedrockAccessKeyId,
+                                         String bedrockSecretAccessKey,
+                                         String sharedAccessKeyId,
+                                         String sharedSecretAccessKey) {
+        String bid = bedrockAccessKeyId == null ? "" : bedrockAccessKeyId;
+        String bsk = bedrockSecretAccessKey == null ? "" : bedrockSecretAccessKey;
+        if (!bid.isEmpty() && !bsk.isEmpty()) {
+            return new ResolvedKey(bid, bsk);
+        }
+        String sid = sharedAccessKeyId == null ? "" : sharedAccessKeyId;
+        String ssk = sharedSecretAccessKey == null ? "" : sharedSecretAccessKey;
+        return new ResolvedKey(sid, ssk);
+    }
 
     @Bean
     public BedrockRuntimeClient bedrockRuntimeClient() {
@@ -26,23 +48,27 @@ public class AWSConfig {
         System.out.println("Secret Access Key present: " + (!secretAccessKey.isEmpty()));
         System.out.println("Region: " + bedrockRegion);
 
-        AwsCredentialsProvider credentialsProvider;
+        ResolvedKey resolved = resolveBedrockKey(bedrockAccessKeyId, bedrockSecretAccessKey,
+                                                 accessKeyId, secretAccessKey);
 
-        if (!accessKeyId.isEmpty() && !secretAccessKey.isEmpty()) {
-            System.out.println("Using configured AWS credentials");
+        AwsCredentialsProvider credentialsProvider;
+        if (!resolved.accessKeyId().isEmpty() && !resolved.secretAccessKey().isEmpty()) {
+            System.out.println("Using configured AWS credentials for Bedrock"
+                    + (bedrockAccessKeyId != null && !bedrockAccessKeyId.isEmpty()
+                        ? " (Bedrock-specific)" : " (shared)"));
             credentialsProvider = StaticCredentialsProvider.create(
-                AwsBasicCredentials.create(accessKeyId, secretAccessKey)
+                AwsBasicCredentials.create(resolved.accessKeyId(), resolved.secretAccessKey())
             );
         } else {
-            System.out.println("Attempting to use default AWS credentials provider chain");
+            System.out.println("Attempting to use default AWS credentials provider chain for Bedrock");
             try {
                 credentialsProvider = DefaultCredentialsProvider.builder().build();
-                // Test if credentials are available
                 credentialsProvider.resolveCredentials();
                 System.out.println("Default credentials provider chain successful");
             } catch (Exception e) {
-                System.err.println("No AWS credentials available: " + e.getMessage());
-                System.err.println("To use Bedrock, set aws.access.key.id and aws.secret.access.key in application.properties");
+                System.err.println("No AWS credentials available for Bedrock: " + e.getMessage());
+                System.err.println("To use Bedrock, set aws.access.key.id and aws.secret.access.key, "
+                        + "or aws.bedrock.access.key.id and aws.bedrock.secret.access.key");
                 return null;
             }
         }

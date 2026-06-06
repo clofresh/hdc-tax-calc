@@ -23,6 +23,7 @@ node_modules
 .env*
 .env.local
 .env.*.local
+!.env.example
 
 # Security - Credentials & Keys
 *.pem

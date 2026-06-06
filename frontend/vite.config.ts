@@ -37,9 +37,13 @@ export default defineConfig(({ mode }) => {
 
   // Add the proxy ONLY for local development
   if (mode === 'development' && config.server) {
+    // VITE_BACKEND_PROXY_TARGET points at the backend.
+    //   - Inside docker compose: http://backend:8080 (Compose service DNS)
+    //   - Running vite on the host: http://localhost:8080
+    const proxyTarget = process.env.VITE_BACKEND_PROXY_TARGET || 'http://localhost:8080';
     config.server.proxy = {
       '/api': {
-        target: 'http://localhost:8080',
+        target: proxyTarget,
         changeOrigin: true,
       },
     };

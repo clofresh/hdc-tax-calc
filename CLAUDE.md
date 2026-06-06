@@ -21,29 +21,42 @@ Brings up Postgres, backend, frontend, LocalStack (S3 stub), and Mailhog (SMTP c
 
 Ctrl+C stops the watcher *and* the containers cleanly. To run the stack in the background instead, `docker compose up -d` and then `docker compose watch` in a separate terminal — that variant only attaches the watcher.
 
-| Service     | URL                              | Notes                              |
-|-------------|----------------------------------|------------------------------------|
-| Frontend    | http://localhost:5173            | Vite dev server, HMR enabled       |
-| Backend API | http://localhost:5173/api/...    | Reached through the Vite proxy; container has no host port |
-| Postgres    | localhost:5432 (user `hdc`)      | DB name `hdc`                      |
-| Mailhog UI  | http://localhost:8025            | Catches all outbound SMTP          |
-| LocalStack  | http://localhost:4566            | S3 endpoint                        |
+| Service     | URL                                            | Notes                                       |
+|-------------|------------------------------------------------|---------------------------------------------|
+| Frontend    | http://localhost:${FRONTEND_PORT:-5173}        | Vite dev server, HMR enabled                |
+| Backend API | http://localhost:${FRONTEND_PORT:-5173}/api/...| Reached through the Vite proxy; container has no host port |
+| Postgres    | localhost:${POSTGRES_PORT:-5432} (user `hdc`)  | DB name `hdc`                               |
+| Mailhog UI  | http://localhost:${MAILHOG_UI_PORT:-8025}      | Catches all outbound SMTP                   |
+| LocalStack  | not host-bound — backend reaches via DNS       | `docker compose exec backend curl http://localstack:4566/...` for debugging |
 
 The backend container is not published on the host. Browsers and host-side
-curls reach it through Vite at `http://localhost:5173/api/...`. Port 8080 on
-the host is intentionally left free (e.g. for llamacpp). To hit the backend
-directly for debugging, either `docker compose exec backend curl ...` or
-temporarily add a `8081:8080` mapping to `docker-compose.yml`.
+curls reach it through Vite at `http://localhost:${FRONTEND_PORT:-5173}/api/...`.
+Port 8080 on the host is intentionally left free (e.g. for llamacpp). To hit
+the backend directly for debugging, either `docker compose exec backend curl ...`
+or temporarily add a `8081:8080` mapping to `docker-compose.yml`.
+
+Mailhog SMTP (1025) and LocalStack (4566) are no longer host-bound either —
+they're only used by the backend container, which reaches them via Docker DNS.
+If you need host access to either (e.g. `aws --endpoint-url` from the host),
+temporarily add the `ports:` line back to `docker-compose.yml`.
 
 **Hot reload:**
 - Frontend: save a file → compose watch syncs it into the container → Vite HMR (~200ms).
 - Backend: save a Java file → compose watch syncs it into the container and runs `mvn compile` → Spring DevTools restarts (~5s). No manual compile step needed.
 - `pom.xml` or `package.json` change: compose watch rebuilds the affected container (~30s).
 
+**Running multiple worktrees:** Each worktree's directory is its own
+`COMPOSE_PROJECT_NAME` so containers, networks, and volumes are isolated
+automatically. To let two worktrees' stacks coexist, set
+`FRONTEND_PORT`, `POSTGRES_PORT`, and `MAILHOG_UI_PORT` in the secondary
+worktree's `.env` (see `.env.example` for the template). Typical pattern:
++1 offset for the first secondary worktree, +2 for the next.
+
 **Reset the local DB:** `docker compose down -v && docker compose up -d`.
 
 **Troubleshooting:**
 - "port 5432 already in use" — kill any local Postgres or stale SSH tunnel on 5432 before `up`.
+- "bind: address already in use" on a worktree stack — another worktree (or system service) already grabbed that port. Bump `FRONTEND_PORT`, `POSTGRES_PORT`, or `MAILHOG_UI_PORT` in this worktree's `.env` to a free number.
 - File saves don't trigger reload/HMR — make sure you ran `docker compose watch` (not just `up -d`). Watch is what pushes host edits into the containers.
 - `docker compose watch` fails immediately — check `docker compose version`. The `watch` action needs Compose 2.22+ (October 2023).
 - Browser gets 404 on `/api/...` requests — make sure `VITE_API_BASE_URL=/api` in `.env` (not the absolute `http://localhost:8080/api` from older docs). Absolute URLs bypass the Vite proxy and may hit whatever else is on 8080.

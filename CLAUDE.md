@@ -62,6 +62,8 @@ Tests use `@ActiveProfiles("test")` which loads `backend/src/test/resources/appl
 
 If you see `database "hdc_test" does not exist`, your Postgres data volume predates the init script: `docker compose down -v && docker compose up -d` to re-run it. Destructive — wipes any local dev data.
 
+After a fresh `docker compose up` (or any time you've added/edited test files outside an active `docker compose watch` session), run `docker compose build backend` once before `./mvnw test` — `Dockerfile.dev` bakes `src/` at build time, so the cached image won't see test files added after the last build.
+
 **Reset the local DB:** `docker compose down -v && docker compose up -d`.
 
 **Troubleshooting:**

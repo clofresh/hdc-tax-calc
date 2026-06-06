@@ -45,9 +45,16 @@ services:
       # Enables PresetSeeder to load fixtures from src/main/resources/seed/presets/*.json
       SPRING_PROFILES_ACTIVE: dev
     volumes:
-      - ./backend/src:/app/src
-      - ./backend/pom.xml:/app/pom.xml
       - maven-repo:/root/.m2
+    develop:
+      watch:
+        - action: sync+exec
+          path: ./backend/src
+          target: /app/src
+          exec:
+            command: ./mvnw -q compile
+        - action: rebuild
+          path: ./backend/pom.xml
     networks:
       - hdc-net
 

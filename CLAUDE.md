@@ -52,6 +52,16 @@ automatically. To let two worktrees' stacks coexist, set
 worktree's `.env` (see `.env.example` for the template). Typical pattern:
 +1 offset for the first secondary worktree, +2 for the next.
 
+**Backend tests:** Integration tests use a separate `hdc_test` database on the same Postgres instance, created by `docker/postgres/init/02-create-test-db.sql`. Run:
+
+```bash
+docker compose exec backend ./mvnw test
+```
+
+Tests use `@ActiveProfiles("test")` which loads `backend/src/test/resources/application-test.properties`. Hibernate's `ddl-auto=create-drop` rebuilds the test schema on each run.
+
+If you see `database "hdc_test" does not exist`, your Postgres data volume predates the init script: `docker compose down -v && docker compose up -d` to re-run it. Destructive — wipes any local dev data.
+
 **Reset the local DB:** `docker compose down -v && docker compose up -d`.
 
 **Troubleshooting:**

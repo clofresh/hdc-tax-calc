@@ -44,7 +44,8 @@ temporarily add a `8081:8080` mapping to `docker-compose.yml`.
 
 **Troubleshooting:**
 - "port 5432 already in use" — kill any local Postgres or stale SSH tunnel on 5432 before `up`.
-- Frontend HMR doesn't fire — confirm `CHOKIDAR_USEPOLLING=true` in the `frontend` service env.
+- File saves don't trigger reload/HMR — make sure you ran `docker compose watch` (not just `up -d`). Watch is what pushes host edits into the containers.
+- `docker compose watch` fails immediately — check `docker compose version`. The `watch` action needs Compose 2.22+ (October 2023).
 - Browser gets 404 on `/api/...` requests — make sure `VITE_API_BASE_URL=/api` in `.env` (not the absolute `http://localhost:8080/api` from older docs). Absolute URLs bypass the Vite proxy and may hit whatever else is on 8080.
 - Backend can't reach DB — check `docker compose logs postgres` for init errors; if seen, `down -v` and retry.
 - Schema looks wrong after entity change — `ddl-auto=update` adds columns but doesn't drop or rename them. `down -v` for destructive changes.

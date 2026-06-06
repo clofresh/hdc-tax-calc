@@ -156,6 +156,28 @@
 					</excludes>
 				</configuration>
 			</plugin>
+			<plugin>
+				<!-- Override datasource and DDL settings during mvnw test so
+				     integration tests always run against hdc_test (not hdc).
+				     System properties override OS env vars in Spring's precedence
+				     order, so these defeat SPRING_DATASOURCE_URL=...hdc set by
+				     docker-compose. Also activates the test profile so that
+				     application-test.properties is loaded alongside dev. -->
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<systemPropertyVariables>
+						<spring.profiles.active>test</spring.profiles.active>
+						<spring.datasource.url>jdbc:postgresql://postgres:5432/hdc_test?currentSchema=user_schema</spring.datasource.url>
+						<spring.datasource.username>hdc</spring.datasource.username>
+						<spring.datasource.password>hdc_local</spring.datasource.password>
+						<spring.jpa.hibernate.ddl-auto>create-drop</spring.jpa.hibernate.ddl-auto>
+						<jwt.secret>dGVzdC1qd3Qtc2VjcmV0LWZvci10ZXN0cy1tdXN0LWJlLTMyLWNoYXJzLW9yLW1vcmU=</jwt.secret>
+						<aws.s3.endpoint></aws.s3.endpoint>
+						<aws.s3.bucket-name>test-bucket</aws.s3.bucket-name>
+					</systemPropertyVariables>
+				</configuration>
+			</plugin>
 		</plugins>
 	</build>
 

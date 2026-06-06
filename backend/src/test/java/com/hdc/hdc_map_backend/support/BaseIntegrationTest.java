@@ -12,11 +12,18 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
+// @ActiveProfiles activates the dev-seeder-suppressing "test" profile.
+// @TestPropertySource forces application-test.properties to a precedence
+// level that overrides OS env vars (which docker-compose sets, e.g.
+// SPRING_DATASOURCE_URL=...hdc). Without this annotation, the profile
+// file loads but env vars beat it and tests run against the dev DB.
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@TestPropertySource(locations = "classpath:application-test.properties")
 public abstract class BaseIntegrationTest {
 
     @Autowired protected MockMvc mockMvc;
